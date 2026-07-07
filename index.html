@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brunch — Lexicon Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1b2a;
+    --bg-deep: #081420;
+    --surface: #152a3d;
+    --surface-line: #24405a;
+    --ink: #e8e4d9;
+    --ink-dim: #8fa3b3;
+    --teal: #3a6b7a;
+    --teal-bright: #5b93a3;
+    --brass: #c9a961;
+    --red: #b3554b;
+    --red-bright: #d16c61;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #16324420, transparent),
+      radial-gradient(900px 500px at 100% 100%, #16324420, transparent),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    padding: 3rem 1.25rem 4rem;
+  }
+
+  .page { max-width: 880px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 2rem; }
+
+  .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin-bottom: 0.9rem;
+  }
+
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2.4rem, 5.5vw, 3.4rem);
+    letter-spacing: -0.01em;
+    margin: 0 0 0.6rem;
+  }
+
+  h1 .accent { color: var(--teal-bright); font-style: italic; font-weight: 500; }
+
+  .subtitle {
+    color: var(--ink-dim);
+    font-size: 0.95rem;
+    max-width: 46ch;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Tab nav */
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--surface-line);
+    color: var(--ink-dim);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0.6rem 1.3rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab-btn:hover { color: var(--ink); border-color: var(--teal-bright); }
+  .tab-btn.active { background: var(--teal); color: var(--ink); border-color: var(--teal); }
+  .tab-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--surface-line);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 30px 60px -25px rgba(0,0,0,0.55);
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---- Translate view ---- */
+  .direction-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+    user-select: none;
+  }
+
+  .direction-toggle .side {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--ink);
+    min-width: 6.5rem;
+    text-align: center;
+  }
+
+  .swap-btn {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    border: 1px solid var(--surface-line);
+    background: var(--bg-deep);
+    color: var(--brass);
+    font-size: 1.15rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.35s cubic-bezier(.2,.9,.3,1.3), border-color 0.2s, background 0.2s;
+  }
+
+  .swap-btn:hover { border-color: var(--brass); background: #1a3346; }
+  .swap-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .swap-btn.spin { transform: rotate(180deg); }
+
+  .rune-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 0.25rem 0 1.5rem;
+    color: var(--surface-line);
+    font-size: 0.8rem;
+    letter-spacing: 0.4em;
+  }
+  .rune-divider::before, .rune-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(90deg, transparent, var(--surface-line), transparent);
+  }
+  .rune-divider span { color: var(--teal); transition: color 0.4s ease; }
+  .rune-divider.active span { color: var(--brass); }
+
+  /* FIX: workspace items are grid children. Without min-width: 0, a grid
+     item's implicit minimum width is based on its content's intrinsic size.
+     A long unbroken Brunch "word" (no spaces) has huge intrinsic width, which
+     forced the whole grid track (including the *input* textarea) to shrink
+     down to fit, squeezing the input to ~1 character per row. min-width: 0
+     lets the track shrink to the grid's actual column size instead, and the
+     textarea/output-box below wrap normally within that width. */
+  .workspace { display: grid; grid-template-columns: 1fr; gap: 1.25rem; min-width: 0; }
+  @media (min-width: 720px) { .workspace { grid-template-columns: 1fr 1fr; } }
+
+  .panel { min-width: 0; }
+
+  .panel label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 0.55rem;
+  }
+
+  textarea, .output-box {
+    width: 100%;
+    height: 190px;
+    padding: 1rem 1.1rem;
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.98rem;
+    line-height: 1.55;
+    /* FIX: force long unbroken "words" to wrap onto the next line instead of
+       stretching their container. overflow-wrap breaks within a word only
+       when necessary (no natural break point), so normal typing is
+       unaffected; word-break: normal keeps regular English wrapping sane. */
+    overflow-wrap: break-word;
+    word-break: normal;
+    min-width: 0;
+  }
+
+  textarea {
+    background: var(--bg-deep);
+    border: 1px solid var(--surface-line);
+    color: var(--ink);
+    resize: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea::placeholder { color: #4c6376; }
+  textarea:focus { outline: none; border-color: var(--teal-bright); }
+
+  .output-box {
+    background: #0a1622;
+    border: 1px dashed var(--surface-line);
+    overflow-y: auto;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    color: var(--ink);
+  }
+
+  .output-box.placeholder { color: var(--ink-dim); font-style: italic; }
+  .output-box.error { color: #e39a9a; border-color: #6b3a3a; }
+
+  .action-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .hint { font-size: 0.78rem; color: var(--ink-dim); margin-right: auto; }
+
+  button.translate {
+    background: var(--teal);
+    color: var(--ink);
+    border: none;
+    padding: 0.8rem 1.9rem;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  button.translate:hover { background: var(--teal-bright); }
+  button.translate:active { transform: scale(0.97); }
+  button.translate:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+  button.translate:disabled { opacity: 0.55; cursor: progress; }
+
+  /* ---- Settings view ---- */
+  .settings-section { margin-bottom: 2rem; }
+  .settings-section:last-of-type { margin-bottom: 0; }
+
+  .settings-section h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    margin: 0 0 0.35rem;
+    color: var(--ink);
+  }
+
+  .settings-section .desc {
+    font-size: 0.8rem;
+    color: var(--ink-dim);
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+
+  .range-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 0.4rem;
+  }
+
+  .field input[type="number"], .field input[type="text"] {
+    width: 100%;
+    background: var(--bg-deep);
+    border: 1px solid var(--surface-line);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.92rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus { outline: none; border-color: var(--teal-bright); }
+
+  .seed-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .seed-row .field { flex: 1; min-width: 200px; }
+
+  button.secondary-inline {
+    background: transparent;
+    color: var(--teal-bright);
+    border: 1px solid var(--surface-line);
+    padding: 0.62rem 1rem;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  button.secondary-inline:hover { border-color: var(--teal-bright); color: var(--ink); }
+  button.secondary-inline:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  .phoneme-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .phoneme-grid { grid-template-columns: 1fr 1fr 1fr; }
+  }
+
+  .phoneme-field textarea.phoneme-input {
+    height: 90px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--surface-line);
+    margin: 1.75rem 0;
+    border: none;
+  }
+
+  .settings-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  button.save {
+    background: var(--teal);
+    color: var(--ink);
+    border: none;
+    padding: 0.75rem 1.7rem;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button.save:hover { background: var(--teal-bright); }
+  button.save:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+  button.save:disabled { opacity: 0.55; cursor: progress; }
+
+  button.danger {
+    background: transparent;
+    color: var(--red-bright);
+    border: 1px solid var(--red);
+    padding: 0.75rem 1.4rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  button.danger:hover { background: var(--red); color: var(--ink); }
+  button.danger:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+  .status-msg {
+    font-size: 0.82rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    display: none;
+  }
+  .status-msg.show { display: block; }
+  .status-msg.ok { background: #17332a; color: #8fd9b3; border: 1px solid #2a5943; }
+  .status-msg.err { background: #33201d; color: #e39a9a; border: 1px solid #6b3a3a; }
+
+  .field-hint { font-size: 0.72rem; color: var(--ink-dim); margin-top: 0.35rem; }
+
+  /* ---- Stats view ---- */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .stat-card {
+    background: var(--bg-deep);
+    border: 1px solid var(--surface-line);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 0.45rem;
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--brass);
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .stat-value .stat-sub {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--ink-dim);
+    display: block;
+    margin-top: 0.2rem;
+  }
+
+  /* ---- Training view ---- */
+  .dropzone {
+    border: 2px dashed var(--surface-line);
+    border-radius: 14px;
+    padding: 2.25rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg-deep);
+  }
+
+  .dropzone:hover, .dropzone:focus-visible { border-color: var(--teal-bright); }
+  .dropzone.dragover { border-color: var(--brass); background: #10202f; }
+  .dropzone:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+  .dropzone-icon {
+    font-size: 1.6rem;
+    color: var(--teal-bright);
+    margin-bottom: 0.5rem;
+  }
+
+  .dropzone-label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 0.3rem;
+  }
+
+  .dropzone-hint { font-size: 0.75rem; color: var(--ink-dim); }
+
+  .file-list {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-deep);
+    border: 1px solid var(--surface-line);
+    border-radius: 8px;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.82rem;
+  }
+
+  .file-item .file-name { color: var(--ink); }
+  .file-item .file-meta { color: var(--ink-dim); font-size: 0.75rem; }
+
+  .batch-size-row {
+    margin-top: 1.25rem;
+  }
+
+  .batch-size-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+  }
+
+  .batch-size-header label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  #batchSizeValue {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--brass);
+  }
+
+  input[type="range"] {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg-deep);
+    border: 1px solid var(--surface-line);
+    accent-color: var(--teal-bright);
+    cursor: pointer;
+  }
+
+  .training-progress { margin-top: 0.5rem; }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+    margin-bottom: 0.6rem;
+  }
+
+  #progressPercent {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--brass);
+  }
+
+  .progress-track {
+    width: 100%;
+    height: 12px;
+    background: var(--bg-deep);
+    border: 1px solid var(--surface-line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--teal), var(--teal-bright));
+    border-radius: 999px;
+    transition: width 0.25s ease;
+  }
+
+  .progress-substats {
+    margin-top: 0.75rem;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1.25rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">Constructed Language Lab</div>
+    <h1>Brunch<span class="accent"> Lexicon</span></h1>
+    <p class="subtitle">A Nordic-flavored invented tongue, decoded word by word. Type on either side and let the engine do the rest.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tabTranslateBtn" type="button">Translate</button>
+    <button class="tab-btn" id="tabSettingsBtn" type="button">Settings</button>
+    <button class="tab-btn" id="tabStatsBtn" type="button">Stats</button>
+    <button class="tab-btn" id="tabTrainingBtn" type="button">Training</button>
+  </div>
+
+  <div class="card">
+
+    <!-- Translate view -->
+    <div class="view active" id="viewTranslate">
+      <div class="direction-toggle">
+        <span class="side" id="labelLeft">English</span>
+        <button class="swap-btn" id="swapBtn" type="button" title="Swap direction" aria-label="Swap translation direction">⇄</button>
+        <span class="side" id="labelRight">Brunch</span>
+      </div>
+
+      <div class="rune-divider" id="runeDivider"><span>ᛒ ᚱ ᚢ ᚾ ᚲ ᚺ</span></div>
+
+      <div class="workspace">
+        <div class="panel">
+          <label id="inputLabel" for="textInput">English input</label>
+          <textarea id="textInput" placeholder="Type text to convert…"></textarea>
+        </div>
+
+        <div class="panel">
+          <label id="outputLabel">Brunch output</label>
+          <div id="textOutput" class="output-box placeholder">Translation will appear here…</div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <span class="hint">Every lookup of a known word may return a different Brunch counterpart — that's intentional.</span>
+        <button class="translate" id="translateBtn" type="button">Translate</button>
+      </div>
+    </div>
+
+    <!-- Settings view -->
+    <div class="view" id="viewSettings">
+      <div class="status-msg" id="settingsStatus"></div>
+
+      <div class="settings-section">
+        <h2>Seed</h2>
+        <p class="desc">Optional. Set the same seed (plus identical phonology settings) on two devices to have them independently generate the exact same Brunch words for the exact same English words — like a Minecraft world seed — without ever sharing the brunch.db file itself. Leave blank for fully random generation.</p>
+        <div class="seed-row">
+          <div class="field">
+            <label for="seedInput">Seed</label>
+            <input type="text" id="seedInput" placeholder="e.g. midnight-fjord-42" maxlength="128" />
+          </div>
+          <button class="secondary-inline" id="randomSeedBtn" type="button">Generate random seed</button>
+        </div>
+        <div class="field-hint">Changing the seed only affects words translated after saving. Clear the dictionary first if you want existing words to regenerate under the new seed.</div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="settings-section">
+        <h2>Counterparts per word</h2>
+        <p class="desc">Each new English word gets a random number of Brunch counterparts in this range. A different one is chosen at random every time that word is translated.</p>
+        <div class="range-row">
+          <div class="field">
+            <label for="minCounterparts">Minimum</label>
+            <input type="number" id="minCounterparts" min="1" max="500" />
+          </div>
+          <div class="field">
+            <label for="maxCounterparts">Maximum</label>
+            <input type="number" id="maxCounterparts" min="1" max="500" />
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="settings-section">
+        <h2>Word length</h2>
+        <p class="desc">Character-count range for newly generated Brunch words.</p>
+        <div class="range-row">
+          <div class="field">
+            <label for="minLength">Minimum</label>
+            <input type="number" id="minLength" min="1" max="500" />
+          </div>
+          <div class="field">
+            <label for="maxLength">Maximum</label>
+            <input type="number" id="maxLength" min="1" max="500" />
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="settings-section">
+        <h2>Phonology</h2>
+        <p class="desc">The building blocks used to construct new Brunch words. Comma-separated, letters only.</p>
+        <div class="phoneme-grid">
+          <div class="field phoneme-field">
+            <label for="onsetsInput">Onsets</label>
+            <textarea id="onsetsInput" class="phoneme-input"></textarea>
+            <div class="field-hint">Word-starting sounds, e.g. sj, kv, bj</div>
+          </div>
+          <div class="field phoneme-field">
+            <label for="vowelsInput">Vowels</label>
+            <textarea id="vowelsInput" class="phoneme-input"></textarea>
+            <div class="field-hint">Core vowel sounds, e.g. aa, ee, ie</div>
+          </div>
+          <div class="field phoneme-field">
+            <label for="codasInput">Codas</label>
+            <textarea id="codasInput" class="phoneme-input"></textarea>
+            <div class="field-hint">Word-ending sounds, e.g. ng, rk, st</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="settings-section">
+        <h2>Seed generation</h2>
+        <p class="desc">Runs the bundled <code>training/words.txt</code> wordlist through the engine using your currently <em>saved</em> settings, so two devices with the same seed and phonology end up with matching dictionary entries for common words — without exchanging brunch.db. Save your settings first, then run this on both devices.</p>
+        <div class="settings-actions">
+          <button class="save" id="startSeedGenBtn" type="button">Start seed generation</button>
+        </div>
+        <div class="training-progress" id="seedGenProgress" style="display:none; margin-top: 1.25rem;">
+          <div class="progress-header">
+            <span id="seedGenLabel">Processing…</span>
+            <span id="seedGenPercent">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="seedGenFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="settings-section">
+        <div class="settings-actions">
+          <button class="save" id="saveSettingsBtn" type="button">Save settings</button>
+          <button class="danger" id="clearDictBtn" type="button">Clear learned dictionary</button>
+          <span class="field-hint">Phonology, length, and seed changes only affect words not yet translated. Clear the dictionary to regenerate everything.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats view -->
+    <div class="view" id="viewStats">
+      <div class="status-msg" id="statsStatus"></div>
+
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-label">Distinct English words</div>
+          <div class="stat-value" id="statDistinctEnglish">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Distinct Brunch words</div>
+          <div class="stat-value" id="statDistinctBrunch">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total dictionary rows</div>
+          <div class="stat-value" id="statTotalRows">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg counterparts / word</div>
+          <div class="stat-value" id="statAvgCounterparts">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Brunch word length</div>
+          <div class="stat-value" id="statAvgLength">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Word length range</div>
+          <div class="stat-value" id="statLengthRange">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Most ambiguous word</div>
+          <div class="stat-value" id="statTopWord">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Database file size</div>
+          <div class="stat-value" id="statDbSize">—</div>
+        </div>
+      </div>
+
+      <div class="settings-actions" style="margin-top: 1.75rem;">
+        <button class="save" id="refreshStatsBtn" type="button">Refresh stats</button>
+      </div>
+    </div>
+
+    <!-- Training view -->
+    <div class="view" id="viewTraining">
+      <div class="status-msg" id="trainingStatus"></div>
+
+      <div class="settings-section">
+        <h2>Bulk training</h2>
+        <p class="desc">Upload one or more text files to run every word through the English → Brunch engine. This only populates the dictionary — no translated output is shown or saved. Large corpora are sent to the server in batches so no single request gets too big.</p>
+
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload text files for training">
+          <div class="dropzone-icon">⇪</div>
+          <div class="dropzone-label">Drop text files here, or click to browse</div>
+          <div class="dropzone-hint">.txt and other plain-text files</div>
+          <input type="file" id="fileInput" multiple accept=".txt,text/plain" style="display:none;" />
+        </div>
+
+        <div class="file-list" id="fileList"></div>
+
+        <div class="batch-size-row">
+          <div class="batch-size-header">
+            <label for="batchSizeSlider">Batch size (words per request)</label>
+            <span id="batchSizeValue">500</span>
+          </div>
+          <input type="range" id="batchSizeSlider" min="50" max="5000" step="50" value="500" />
+          <div class="field-hint">Smaller batches give smoother progress updates and lower memory use per request; larger batches finish faster overall with fewer round-trips. 500 is a reasonable default.</div>
+        </div>
+
+        <div class="settings-actions" style="margin-top: 1.5rem;">
+          <button class="save" id="startTrainingBtn" type="button" disabled>Start training</button>
+          <button class="danger" id="clearFilesBtn" type="button" style="display:none;">Clear files</button>
+        </div>
+      </div>
+
+      <div class="training-progress" id="trainingProgress" style="display:none;">
+        <hr class="divider" />
+        <div class="progress-header">
+          <span id="progressLabel">Processing…</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-substats" id="progressSubstats"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const state = { mode: 'to_brunch' };
+
+  // ---- Tabs ----
+  const tabTranslateBtn = document.getElementById('tabTranslateBtn');
+  const tabSettingsBtn = document.getElementById('tabSettingsBtn');
+  const tabStatsBtn = document.getElementById('tabStatsBtn');
+  const tabTrainingBtn = document.getElementById('tabTrainingBtn');
+  const viewTranslate = document.getElementById('viewTranslate');
+  const viewSettings = document.getElementById('viewSettings');
+  const viewStats = document.getElementById('viewStats');
+  const viewTraining = document.getElementById('viewTraining');
+
+  function showTab(name) {
+    const isTranslate = name === 'translate';
+    const isSettings = name === 'settings';
+    const isStats = name === 'stats';
+    const isTraining = name === 'training';
+
+    viewTranslate.classList.toggle('active', isTranslate);
+    viewSettings.classList.toggle('active', isSettings);
+    viewStats.classList.toggle('active', isStats);
+    viewTraining.classList.toggle('active', isTraining);
+
+    tabTranslateBtn.classList.toggle('active', isTranslate);
+    tabSettingsBtn.classList.toggle('active', isSettings);
+    tabStatsBtn.classList.toggle('active', isStats);
+    tabTrainingBtn.classList.toggle('active', isTraining);
+
+    if (isSettings) loadSettings();
+    if (isStats) loadStats();
+  }
+
+  tabTranslateBtn.addEventListener('click', () => showTab('translate'));
+  tabSettingsBtn.addEventListener('click', () => showTab('settings'));
+  tabStatsBtn.addEventListener('click', () => showTab('stats'));
+  tabTrainingBtn.addEventListener('click', () => showTab('training'));
+
+  // ---- Translate view ----
+  const swapBtn = document.getElementById('swapBtn');
+  const labelLeft = document.getElementById('labelLeft');
+  const labelRight = document.getElementById('labelRight');
+  const inputLabel = document.getElementById('inputLabel');
+  const outputLabel = document.getElementById('outputLabel');
+  const textInput = document.getElementById('textInput');
+  const textOutput = document.getElementById('textOutput');
+  const translateBtn = document.getElementById('translateBtn');
+  const runeDivider = document.getElementById('runeDivider');
+
+  function renderDirection() {
+    const toEnglish = state.mode === 'to_english';
+    labelLeft.textContent = toEnglish ? 'Brunch' : 'English';
+    labelRight.textContent = toEnglish ? 'English' : 'Brunch';
+    inputLabel.textContent = toEnglish ? 'Brunch input' : 'English input';
+    outputLabel.textContent = toEnglish ? 'English output' : 'Brunch output';
+    textInput.placeholder = toEnglish ? 'Enter Brunch words here…' : 'Type text to convert…';
+    textOutput.textContent = 'Translation will appear here…';
+    textOutput.classList.remove('error');
+    textOutput.classList.add('placeholder');
+  }
+
+  swapBtn.addEventListener('click', () => {
+    state.mode = state.mode === 'to_brunch' ? 'to_english' : 'to_brunch';
+    swapBtn.classList.add('spin');
+    setTimeout(() => swapBtn.classList.remove('spin'), 350);
+    renderDirection();
+  });
+
+  async function translateText() {
+    const input = textInput.value;
+    if (!input.trim()) {
+      textOutput.textContent = 'Type something on the left first.';
+      textOutput.classList.add('placeholder');
+      textOutput.classList.remove('error');
+      return;
+    }
+
+    translateBtn.disabled = true;
+    const originalLabel = translateBtn.textContent;
+    translateBtn.textContent = 'Translating…';
+    runeDivider.classList.add('active');
+
+    try {
+      const response = await fetch('/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: input, mode: state.mode })
+      });
+      if (!response.ok) throw new Error('Server returned an error response');
+      const data = await response.json();
+      textOutput.textContent = data.translated_text;
+      textOutput.classList.remove('placeholder', 'error');
+    } catch (err) {
+      console.error('Translate error:', err);
+      textOutput.textContent = 'Could not reach the translation server. Please try again.';
+      textOutput.classList.add('placeholder', 'error');
+    } finally {
+      translateBtn.disabled = false;
+      translateBtn.textContent = originalLabel;
+      setTimeout(() => runeDivider.classList.remove('active'), 500);
+    }
+  }
+
+  translateBtn.addEventListener('click', translateText);
+  textInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) translateText();
+  });
+
+  renderDirection();
+
+  // ---- Settings view ----
+  const seedInput = document.getElementById('seedInput');
+  const randomSeedBtn = document.getElementById('randomSeedBtn');
+  const minCounterparts = document.getElementById('minCounterparts');
+  const maxCounterparts = document.getElementById('maxCounterparts');
+  const minLength = document.getElementById('minLength');
+  const maxLength = document.getElementById('maxLength');
+  const onsetsInput = document.getElementById('onsetsInput');
+  const vowelsInput = document.getElementById('vowelsInput');
+  const codasInput = document.getElementById('codasInput');
+  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  const clearDictBtn = document.getElementById('clearDictBtn');
+  const settingsStatus = document.getElementById('settingsStatus');
+
+  let settingsLoaded = false;
+
+  function showStatus(message, ok) {
+    settingsStatus.textContent = message;
+    settingsStatus.className = 'status-msg show ' + (ok ? 'ok' : 'err');
+  }
+
+  async function loadSettings() {
+    if (settingsLoaded) return;
+    try {
+      const res = await fetch('/settings');
+      if (!res.ok) throw new Error('Failed to load settings');
+      const cfg = await res.json();
+      seedInput.value = cfg.seed || '';
+      minCounterparts.value = cfg.min_counterparts;
+      maxCounterparts.value = cfg.max_counterparts;
+      minLength.value = cfg.min_word_length;
+      maxLength.value = cfg.max_word_length;
+      onsetsInput.value = cfg.onsets.join(', ');
+      vowelsInput.value = cfg.vowels.join(', ');
+      codasInput.value = cfg.codas.join(', ');
+      settingsLoaded = true;
+    } catch (err) {
+      console.error(err);
+      showStatus('Could not load current settings from the server.', false);
+    }
+  }
+
+  function parseList(text) {
+    return text.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  }
+
+  const SEED_WORDS = ['fjord','birch','ember','glacier','moss','tundra','harbor','lantern','spruce','drift',
+    'quartz','willow','frost','cinder','marsh','cobalt','thistle','brine','copper','dune'];
+
+  randomSeedBtn.addEventListener('click', () => {
+    const pick = () => SEED_WORDS[Math.floor(Math.random() * SEED_WORDS.length)];
+    const num = Math.floor(Math.random() * 900) + 100;
+    seedInput.value = `${pick()}-${pick()}-${num}`;
+  });
+
+  saveSettingsBtn.addEventListener('click', async () => {
+    const payload = {
+      seed: seedInput.value.trim(),
+      min_counterparts: parseInt(minCounterparts.value, 10),
+      max_counterparts: parseInt(maxCounterparts.value, 10),
+      min_word_length: parseInt(minLength.value, 10),
+      max_word_length: parseInt(maxLength.value, 10),
+      onsets: parseList(onsetsInput.value),
+      vowels: parseList(vowelsInput.value),
+      codas: parseList(codasInput.value)
+    };
+
+    saveSettingsBtn.disabled = true;
+    const original = saveSettingsBtn.textContent;
+    saveSettingsBtn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showStatus(data.error || 'Settings could not be saved.', false);
+      } else {
+        showStatus('Settings saved. New words will use these rules.', true);
+      }
+    } catch (err) {
+      console.error(err);
+      showStatus('Could not reach the server to save settings.', false);
+    } finally {
+      saveSettingsBtn.disabled = false;
+      saveSettingsBtn.textContent = original;
+    }
+  });
+
+  clearDictBtn.addEventListener('click', async () => {
+    if (!confirm('This deletes every learned English–Brunch mapping. Continue?')) return;
+    try {
+      const res = await fetch('/dictionary/clear', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to clear');
+      showStatus('Dictionary cleared. All words will be regenerated fresh.', true);
+      statsLoaded = false; // force a fresh fetch next time Stats is viewed
+    } catch (err) {
+      console.error(err);
+      showStatus('Could not clear the dictionary.', false);
+    }
+  });
+
+  // ---- Seed generation ----
+  const startSeedGenBtn = document.getElementById('startSeedGenBtn');
+  const seedGenProgress = document.getElementById('seedGenProgress');
+  const seedGenLabel = document.getElementById('seedGenLabel');
+  const seedGenPercent = document.getElementById('seedGenPercent');
+  const seedGenFill = document.getElementById('seedGenFill');
+
+  startSeedGenBtn.addEventListener('click', async () => {
+    const seedNote = seedInput.value.trim()
+      ? `Seed: "${seedInput.value.trim()}"`
+      : 'No seed set — words will generate randomly (fine if you don\'t need cross-device matching).';
+
+    const confirmed = confirm(
+      'Before starting, double-check your saved settings on the Settings tab:\n\n' +
+      '• Seed\n• Counterparts per word\n• Word length range\n• Phonology (onsets/vowels/codas)\n\n' +
+      seedNote + '\n\n' +
+      'This trains the bundled training/words.txt wordlist using your currently SAVED settings ' +
+      '(not just what\'s in the fields right now — click "Save settings" first if you\'ve changed anything). ' +
+      'For two devices to end up with matching dictionaries, both must run this with identical saved settings.\n\n' +
+      'Continue?'
+    );
+    if (!confirmed) return;
+
+    startSeedGenBtn.disabled = true;
+    saveSettingsBtn.disabled = true;
+    clearDictBtn.disabled = true;
+    seedGenProgress.style.display = 'block';
+    seedGenLabel.textContent = 'Starting…';
+    seedGenFill.style.width = '0%';
+    seedGenPercent.textContent = '0%';
+    settingsStatus.classList.remove('show');
+
+    try {
+      const response = await fetch('/dictionary/train-wordlist', { method: 'POST' });
+      if (!response.ok || !response.body) throw new Error('Request failed');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finished = false;
+      let finalOk = false;
+      let finalMessage = '';
+
+      while (!finished) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let evt;
+          try {
+            evt = JSON.parse(line);
+          } catch (e) {
+            continue;
+          }
+
+          if (evt.event === 'progress') {
+            const pct = evt.total_words > 0 ? Math.min(100, Math.round((evt.processed / evt.total_words) * 100)) : 0;
+            seedGenLabel.textContent = 'Training on ' + evt.total_words.toLocaleString() + ' words…';
+            seedGenPercent.textContent = pct + '%';
+            seedGenFill.style.width = pct + '%';
+          } else if (evt.event === 'done') {
+            seedGenLabel.textContent = 'Done';
+            seedGenPercent.textContent = '100%';
+            seedGenFill.style.width = '100%';
+            finalOk = true;
+            finalMessage = 'Seed generation complete: ' + evt.processed.toLocaleString() + ' words trained.';
+            finished = true;
+          } else if (evt.event === 'error') {
+            finalOk = false;
+            finalMessage = evt.error || 'Seed generation failed.';
+            finished = true;
+          }
+        }
+      }
+
+      showStatus(finalMessage, finalOk);
+      statsLoaded = false;
+    } catch (err) {
+      console.error(err);
+      showStatus('Could not reach the server to run seed generation.', false);
+    } finally {
+      startSeedGenBtn.disabled = false;
+      saveSettingsBtn.disabled = false;
+      clearDictBtn.disabled = false;
+    }
+  });
+
+  // ---- Stats view ----
+  const statsStatus = document.getElementById('statsStatus');
+  const statDistinctEnglish = document.getElementById('statDistinctEnglish');
+  const statDistinctBrunch = document.getElementById('statDistinctBrunch');
+  const statTotalRows = document.getElementById('statTotalRows');
+  const statAvgCounterparts = document.getElementById('statAvgCounterparts');
+  const statAvgLength = document.getElementById('statAvgLength');
+  const statLengthRange = document.getElementById('statLengthRange');
+  const statTopWord = document.getElementById('statTopWord');
+  const statDbSize = document.getElementById('statDbSize');
+  const refreshStatsBtn = document.getElementById('refreshStatsBtn');
+
+  let statsLoaded = false;
+
+  function showStatsStatus(message, ok) {
+    statsStatus.textContent = message;
+    statsStatus.className = 'status-msg show ' + (ok ? 'ok' : 'err');
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  async function loadStats(force) {
+    if (statsLoaded && !force) return;
+    try {
+      const res = await fetch('/stats');
+      if (!res.ok) throw new Error('Failed to load stats');
+      const s = await res.json();
+
+      statDistinctEnglish.textContent = s.distinct_english_words.toLocaleString();
+      statDistinctBrunch.textContent = s.distinct_brunch_words.toLocaleString();
+      statTotalRows.textContent = s.total_rows.toLocaleString();
+      statAvgCounterparts.textContent = s.avg_counterparts_per_word.toFixed(2);
+      statAvgLength.textContent = s.avg_brunch_word_length.toFixed(1) + ' chars';
+      statLengthRange.textContent = s.min_brunch_word_length + '–' + s.max_brunch_word_length + ' chars';
+      statTopWord.innerHTML = s.most_ambiguous_word
+        ? s.most_ambiguous_word + '<span class="stat-sub">' + s.most_ambiguous_word_counterparts + ' counterparts</span>'
+        : '—';
+      statDbSize.textContent = formatBytes(s.db_file_bytes);
+
+      statsLoaded = true;
+      statsStatus.classList.remove('show');
+    } catch (err) {
+      console.error(err);
+      showStatsStatus('Could not load stats from the server.', false);
+    }
+  }
+
+  refreshStatsBtn.addEventListener('click', () => loadStats(true));
+
+  // ---- Training view ----
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileList = document.getElementById('fileList');
+  const batchSizeSlider = document.getElementById('batchSizeSlider');
+  const batchSizeValue = document.getElementById('batchSizeValue');
+  const startTrainingBtn = document.getElementById('startTrainingBtn');
+  const clearFilesBtn = document.getElementById('clearFilesBtn');
+  const trainingStatus = document.getElementById('trainingStatus');
+  const trainingProgress = document.getElementById('trainingProgress');
+  const progressLabel = document.getElementById('progressLabel');
+  const progressPercent = document.getElementById('progressPercent');
+  const progressFill = document.getElementById('progressFill');
+  const progressSubstats = document.getElementById('progressSubstats');
+
+  let stagedFiles = []; // { name, size, text }
+
+  batchSizeSlider.addEventListener('input', () => {
+    batchSizeValue.textContent = batchSizeSlider.value;
+  });
+
+  function showTrainingStatus(message, ok) {
+    trainingStatus.textContent = message;
+    trainingStatus.className = 'status-msg show ' + (ok ? 'ok' : 'err');
+  }
+
+  function renderFileList() {
+    fileList.innerHTML = '';
+    stagedFiles.forEach((f, idx) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      const words = f.text.trim() ? f.text.trim().split(/\s+/).length : 0;
+      item.innerHTML = '<span class="file-name">' + f.name + '</span>' +
+        '<span class="file-meta">' + formatBytes(f.size) + ' · ~' + words.toLocaleString() + ' words</span>';
+      fileList.appendChild(item);
+    });
+    startTrainingBtn.disabled = stagedFiles.length === 0;
+    clearFilesBtn.style.display = stagedFiles.length > 0 ? 'inline-flex' : 'none';
+  }
+
+  function readFilesAsText(fileObjs) {
+    const readers = Array.from(fileObjs).map(file => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, size: file.size, text: reader.result });
+        reader.onerror = () => reject(new Error('Could not read ' + file.name));
+        reader.readAsText(file);
+      });
+    });
+    return Promise.all(readers);
+  }
+
+  async function handleFiles(fileObjs) {
+    if (!fileObjs || fileObjs.length === 0) return;
+    try {
+      const newFiles = await readFilesAsText(fileObjs);
+      stagedFiles = stagedFiles.concat(newFiles);
+      renderFileList();
+      trainingStatus.classList.remove('show');
+    } catch (err) {
+      console.error(err);
+      showTrainingStatus('Some files could not be read. Please try again.', false);
+    }
+  }
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+    fileInput.value = ''; // allow re-selecting the same file later
+  });
+
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+    });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+  });
+
+  clearFilesBtn.addEventListener('click', () => {
+    stagedFiles = [];
+    renderFileList();
+    trainingProgress.style.display = 'none';
+    trainingStatus.classList.remove('show');
+  });
+
+  function updateProgress(processed, total, newWords, batchIdx, batchCount) {
+    const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+    progressFill.style.width = pct + '%';
+    progressPercent.textContent = pct + '%';
+    progressSubstats.textContent =
+      processed.toLocaleString() + ' / ' + total.toLocaleString() + ' words processed · ' +
+      newWords.toLocaleString() + ' new dictionary entries' +
+      (batchCount > 1 ? ' · batch ' + batchIdx + ' of ' + batchCount : '');
+  }
+
+  // Splits the full corpus (all staged files concatenated) into word-count
+  // batches of roughly `batchSize` words each, preserving original spacing
+  // and punctuation within each batch by slicing on token boundaries rather
+  // than raw characters. Each batch is POSTed to /train/batch independently,
+  // so a very large corpus never sits in one huge request/response, and the
+  // frontend can report accurate incremental progress between batches.
+  function splitIntoBatches(fullText, batchSize) {
+    const tokenRe = /(\w+)|(\s+)|([^\w\s])/g;
+    const tokens = fullText.match(tokenRe) || [];
+
+    const batches = [];
+    let current = '';
+    let wordCount = 0;
+
+    for (const tok of tokens) {
+      current += tok;
+      if (/^\w+$/.test(tok)) {
+        wordCount++;
+        if (wordCount >= batchSize) {
+          batches.push(current);
+          current = '';
+          wordCount = 0;
+        }
+      }
+    }
+    if (current.length > 0) batches.push(current);
+    return batches;
+  }
+
+  function countWords(text) {
+    const matches = text.match(/\w+/g);
+    return matches ? matches.length : 0;
+  }
+
+  startTrainingBtn.addEventListener('click', async () => {
+    if (stagedFiles.length === 0) return;
+
+    startTrainingBtn.disabled = true;
+    clearFilesBtn.disabled = true;
+    batchSizeSlider.disabled = true;
+    trainingProgress.style.display = 'block';
+    progressLabel.textContent = 'Preparing batches…';
+    progressFill.style.width = '0%';
+    progressPercent.textContent = '0%';
+    progressSubstats.textContent = '';
+    trainingStatus.classList.remove('show');
+
+    const batchSize = parseInt(batchSizeSlider.value, 10) || 500;
+    const fullText = stagedFiles.map(f => f.text).join('\n');
+    const totalWords = countWords(fullText);
+    const batches = splitIntoBatches(fullText, batchSize);
+    const batchCount = batches.length;
+
+    let processed = 0;
+    let newWordsTotal = 0;
+
+    progressLabel.textContent = 'Training on ' + totalWords.toLocaleString() + ' words in ' + batchCount + ' batch' + (batchCount === 1 ? '' : 'es') + '…';
+    updateProgress(0, totalWords, 0, 0, batchCount);
+
+    try {
+      for (let i = 0; i < batches.length; i++) {
+        const response = await fetch('/train/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: batches[i] })
+        });
+
+        if (!response.ok) {
+          throw new Error('Batch ' + (i + 1) + ' failed');
+        }
+
+        const data = await response.json();
+        processed += data.processed || 0;
+        newWordsTotal += data.new_words || 0;
+
+        progressLabel.textContent = 'Training…';
+        updateProgress(processed, totalWords, newWordsTotal, i + 1, batchCount);
+      }
+
+      progressLabel.textContent = 'Done';
+      showTrainingStatus(
+        'Training complete: ' + processed.toLocaleString() + ' words processed across ' +
+        batchCount + ' batch' + (batchCount === 1 ? '' : 'es') + ', ' +
+        newWordsTotal.toLocaleString() + ' new dictionary entries added.', true
+      );
+
+      statsLoaded = false; // invalidate cached stats so Stats tab reflects new data
+    } catch (err) {
+      console.error(err);
+      showTrainingStatus(
+        'Training failed partway through (after ' + processed.toLocaleString() +
+        ' words). You can try again — already-processed words are saved.', false
+      );
+    } finally {
+      startTrainingBtn.disabled = false;
+      clearFilesBtn.disabled = false;
+      batchSizeSlider.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
